@@ -45,11 +45,16 @@
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
+I2C_HandleTypeDef hi2c2;
 
 SPI_HandleTypeDef hspi1;
 
 /* USER CODE BEGIN PV */
-char displayBuffer[4];
+char displayBuffer_main[4];
+char displayBuffer_scndry[4];
+
+uint8_t analogBuffer2[2];
+uint16_t analogData2;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -57,6 +62,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_SPI1_Init(void);
+static void MX_I2C2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -97,23 +103,32 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_SPI1_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
   ssd1306_Init();
+  //HAL_I2C_Slave_Receive_DMA(&hi2c2, rxBuffer2, 2); // start DMA
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  	HAL_I2C_EnableListen_IT(&hi2c1);
+      Poll_I2C1();
+      HAL_I2C_Master_Receive(&hi2c2, 0x13 << 1, analogBuffer2, 2, 100);
 
-	    sprintf(displayBuffer, "%hu",analog_data);
+      analogData2 = ((uint16_t) analogBuffer2[0] << 8) | analogBuffer2[1];
 
+	    sprintf(displayBuffer_main, "%hu",analog_data);
+	    sprintf(displayBuffer_scndry, "%hu", analogData2);
 	    ssd1306_Fill(Black); // For the background color selection
 	    ssd1306_SetCursor(2, 0);	// To point to a pixel to start writing from
-	    ssd1306_WriteString("Output: ", Font_11x18, White); // To write the desired text on screen
+	    ssd1306_WriteString("MAIN: ", Font_11x18, White); // To write the desired text on screen
 		ssd1306_SetCursor(77,0);
-		ssd1306_WriteString(displayBuffer, Font_11x18 , White);
+		ssd1306_WriteString(displayBuffer_main, Font_11x18 , White);
+		ssd1306_SetCursor(2, 16);
+		ssd1306_WriteString("SEC: ", Font_11x18, White);
+		ssd1306_SetCursor(77, 16);
+		ssd1306_WriteString(displayBuffer_scndry, Font_11x18, White);
 	    ssd1306_UpdateScreen();
 
     /* USER CODE END WHILE */
@@ -190,6 +205,40 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief I2C2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C2_Init(void)
+{
+
+  /* USER CODE BEGIN I2C2_Init 0 */
+
+  /* USER CODE END I2C2_Init 0 */
+
+  /* USER CODE BEGIN I2C2_Init 1 */
+
+  /* USER CODE END I2C2_Init 1 */
+  hi2c2.Instance = I2C2;
+  hi2c2.Init.ClockSpeed = 100000;
+  hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c2.Init.OwnAddress1 = 38;
+  hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c2.Init.OwnAddress2 = 0;
+  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C2_Init 2 */
+
+  /* USER CODE END I2C2_Init 2 */
 
 }
 

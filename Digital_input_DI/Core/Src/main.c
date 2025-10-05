@@ -21,9 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "I2C_Master.h"
 #include "Data_converter.h"
-#include "stdbool.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,18 +43,9 @@
 I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN PV */
-/* The dataBuffer sends two data - the first one(index 0) is the identifier which tells the
- * slave which module is sending the data, and the second one is the actual data to be sent.
- * NOTE that the data buffer sends an additional data which is by default 0 just to match the
- * buffer size of AI and what is expected in the main controller.
-*/
-uint8_t dataBuffer[3];
 
-/* DI module starts and completes the data transfer first and then sends a signal
- * to AI module to start and complete its data transfer. AI will send a signal back to set the
- * transmit_flag back again to initiate the next transfer.
-*/
-bool transmit_flag = 1;
+uint8_t dataBuffer;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -103,31 +92,15 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  dataBuffer[0] = 0x01; // Identifier for DI module
-  dataBuffer[2] = 0x00; // extra data is set to 0 by default. Can be used in the future if needed.
+
+  HAL_I2C_Slave_Transmit_IT(&hi2c1, &dataBuffer, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  dataBuffer[1] = getByteData();
-
-	  //if(HAL_GPIO_ReadPin(Transfer_start_GPIO_Port, Transfer_start_Pin) == GPIO_PIN_SET){
-	//	  transmit_flag = 1;
-	  //}
-
-	 // HAL_GPIO_WritePin(Transfer_complete_GPIO_Port, Transfer_complete_Pin, GPIO_PIN_RESET);
-	  //HAL_Delay(1);
-
-	  //if(transmit_flag){
-	  writeData(dataBuffer, 3);
-	  HAL_Delay(250);
-	  //transmit_flag = 0;
-	  //HAL_GPIO_WritePin(Transfer_complete_GPIO_Port, Transfer_complete_Pin, GPIO_PIN_SET);
-	  //HAL_Delay(250);
-	  //}
-
+	  dataBuffer = getByteData();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -189,7 +162,7 @@ static void MX_I2C1_Init(void)
   hi2c1.Instance = I2C1;
   hi2c1.Init.ClockSpeed = 100000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.OwnAddress1 = 32;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
   hi2c1.Init.OwnAddress2 = 0;
@@ -262,7 +235,22 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_I2C_SlaveTxCpltCallback(I2C_HandleTypeDef *hi2c){
+	if (hi2c->Instance == I2C1)
+	{
+		HAL_I2C_Slave_Transmit_IT(&hi2c1, &dataBuffer, 1);
+	    //HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_2);
+		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+	}
+}
 
+void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c)
+{
+    if (hi2c->Instance == I2C1)
+    {
+    	HAL_I2C_Slave_Transmit_IT(&hi2c1, &dataBuffer, 1);
+    }
+}
 /* USER CODE END 4 */
 
 /**

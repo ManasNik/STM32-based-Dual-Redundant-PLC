@@ -36,6 +36,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define DI_Address 0x10
+#define AI_Address 0x11
 #define DO_Address 0x14
 #define AO_Address 0x12
 /* USER CODE END PD */
@@ -54,6 +56,10 @@ SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
+uint8_t digitalData;
+uint8_t analogBuffer[2];
+uint16_t analogData;
+
 char analog_displayBuffer[4];
 char digital_displayBuffer[9] = "";
 /* USER CODE END PV */
@@ -109,17 +115,20 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   ssd1306_Init();
-  uart_buffer[0] = 0xAA; // Start byte for data framing in ESP32
+  //uart_buffer[0] = 0xAA; // Start byte for data framing in ESP32
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  /* For receiving data in interrupt mode*/
-	HAL_I2C_EnableListen_IT(&hi2c1);
 
-	for(int i = 0; i < 8; i++){
+	  HAL_I2C_Master_Receive(&hi2c1, DI_Address << 1, &digitalData, 1,100);
+	  HAL_I2C_Master_Receive(&hi2c1, AI_Address << 1, analogBuffer, 2,100);
+
+	  analogData = ((uint16_t) analogBuffer[0] << 8) | analogBuffer[1];
+	/*for(int i = 0; i < 8; i++){
 		digital_displayBuffer[i] = decodedBits[i] ? '1' : '0';
 	}
 	digital_displayBuffer[8] = '\0';
@@ -136,13 +145,12 @@ int main(void)
 	ssd1306_SetCursor(35,20);
 	ssd1306_WriteString(digital_displayBuffer, Font_11x18 , White);
 	ssd1306_UpdateScreen();
-	/* Transferring received data to digital output module
+	Transferring received data to digital output module
 	* and analog output module
 	*/
-	writeData(&digital_data,DO_Address,1);
-	HAL_UART_Transmit(&huart1, uart_buffer, 4, 1);
-	writeData(analog_data, AO_Address, 2);
-	HAL_Delay(250);
+	writeData(&digitalData,DO_Address,1);
+	//HAL_UART_Transmit(&huart1, uart_buffer, 4, 1);
+	writeData(analogBuffer, AO_Address, 2);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
